@@ -137,21 +137,9 @@ facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity',
                 'RVEG_COND' = 'Riparian Vegetation',
                 'RDIS_COND' = 'Lakeshore Anthropogenic Disturbance')
 
-# make list of all condition plots
-ggList <- lapply(split(elev_sub, elev_sub$Indicator), function(i) {
-  ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = Category)) +
-    geom_bar(stat = "identity", position = position_dodge()) +
-    geom_errorbar(aes(ymin = Estimate.P - StdError.P, ymax = Estimate.P + StdError.P), width=.2, position=position_dodge(.9)) +
-    facet_wrap(. ~ Indicator, labeller = labeller(Indicator = facet_labs)) +
-    coord_flip() +
-    ylab("Percent US Lakes") +
-    xlab("")
-  })
-
-
-
 # Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
 
+# Testing
 i <- filter(elev_intro, Indicator == 'WHO_MICX_COND')
 temp <- filter(elev_intro, elev_intro$Indicator %in% unique(elev_intro$Indicator)[1:8])
 
@@ -186,31 +174,6 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
 
 ```
 
-As an example of the plots that can be generated from these data, the condition of alpine, subalpine, and lower lakes are shown with respect to benthic Macroinvertebrate Multimetric Index (MMI), total nitrogen, total phosphorus, lakeshore anthropoengenic disturbance, and trophic state.
-
-```{r select variables, echo = FALSE}
-# Identify which condition variables to include in the plot
-# cond_plots <- list(ggList$NTL_COND,
-#                    ggList$PTL_COND,
-#                    ggList$TROPHIC_STATE,
-#                    ggList$BENT_MMI_COND_2017)
-
-```
-
-```{r generate plot, include = T, echo = FALSE, fig.height = length(cond_plots) * 3}
-# plot as grid in n columns 
-cowplot::plot_grid(plotlist = cond_plots,
-                   ncol = 1,
-                   align = 'v')
-```
-
-The complete set of indicators assessed in the NLA are shown below.
-
-```{r, echo = FALSE, fig.height = length(ggList) * 3}
-cowplot::plot_grid(plotlist = ggList,
-                   ncol = 1,
-                   align = 'v')
-```
 
 ```{r}
 # With TN
