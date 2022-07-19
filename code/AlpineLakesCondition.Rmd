@@ -87,20 +87,36 @@ alp_lks <- alp_sub %>%
 # Subset to the three elevation classes
 elev_sub <- filter(alp_lks, Type == "ELEV_CLASS")
 
-# Make a discrete code for the color classes for the TN, TP, Benthic MMI, and trophic state categories
+# Make a discrete code for the color of the condition classes that is consistent
 elev_intro <- elev_sub %>%
   mutate(category_code = case_when(Category == "Not Assessed" ~ 'c0',
                                    Category == "Poor" ~ 'c2',
                                    Category == 'Fair' ~ 'c3',
                                    Category == "Good" ~ 'c4',
+                                   Category == "HIGH" ~ 'c2',
+                                   Category == 'MODERATE' ~ 'c3',
+                                   Category == "LOW" ~ 'c4',
+                                   Category == "High" ~ 'c2',
+                                   Category == 'Moderate' ~ 'c3',
+                                   Category == "Low" ~ 'c4',
+                                   Category == "Low (<=3 ppm)" ~ 'c2',
+                                   Category == 'Moderate (>3 - <5 ppm)' ~ 'c3',
+                                   Category == "High (>=5 ppm)" ~ 'c4',
                                    Category == 'Hypereutrophic' ~ 'c1',
                                    Category == 'Eutrophic' ~ 'c2',
                                    Category == 'Mesotrophic' ~ 'c3',
                                    Category == 'Oligotrophic' ~ 'c4',
                                    Category == 'Detected' ~ 'c2',
                                    Category == 'Not Detected' ~ 'c4',
-                                   TRUE ~ "other")) %>%
-  filter(Indicator %in% c('NTL_COND', 'PTL_COND', 'TROPHIC_STATE', 'BENT_MMI_COND_2017', 'RDIS_COND', 'MICX_DETECT'))
+                                   Category == "At or Below Benchmark" ~ 'c4',
+                                   Category == "Above Benchmark" ~ 'c2')) %>%
+  mutate(category_code = as.factor(category_code)) %>%
+  mutate(color_hex = case_when(category_code == 'c0' ~ '#808080',
+                               category_code == 'c1' ~ '#984ea3',
+                               category_code == 'c2' ~ '#e41a1c',
+                               category_code == 'c3' ~ '#F0C016',
+                               category_code == 'c4' ~ '#4daf4a')) %>%
+  mutate(color_hex = factor(color_hex, levels = c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')))
 
 # Label the facets
 facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity', 
@@ -133,24 +149,27 @@ ggList <- lapply(split(elev_sub, elev_sub$Indicator), function(i) {
 
 
 # Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
+
+i <- filter(elev_intro, Indicator == 'PTL_COND')
+
 cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
   
-  # Set the fill colors
-  breaks_vec <- c('c0','c2','c3','c4')
-  labels_vec <- c('Not Assessed', 'Poor', 'Fair', 'Good')
-  values_vec <- c('#808080','#e41a1c','#F0C016','#4daf4a')
-  
-  if(i$Indicator[1] == 'TROPHIC_STATE'){
-    breaks_vec <- c('c0', 'c1','c2','c3','c4')
-    labels_vec <- c('Not Assessed', 'Hypereutrophic', 'Eutrophic', 'Mesotrophic', 'Oligotrophic')
-    values_vec <- c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')
-  }
-  
-  if(i$Indicator[1] == 'MICX_DETECT'){
-    breaks_vec <- c('c0', 'c2','c4')
-    labels_vec <- c('Not Assessed', 'Detected', 'Not Detected')
-    values_vec <- c('#808080','#e41a1c','#4daf4a')
-  }
+  # # Set the fill colors
+  # breaks_vec <- c('c0','c2','c3','c4')
+  # labels_vec <- c('Not Assessed', 'Poor', 'Fair', 'Good')
+  # values_vec <- c('#808080','#e41a1c','#F0C016','#4daf4a')
+  # 
+  # if(i$Indicator[1] == 'TROPHIC_STATE'){
+  #   breaks_vec <- c('c0', 'c1','c2','c3','c4')
+  #   labels_vec <- c('Not Assessed', 'Hypereutrophic', 'Eutrophic', 'Mesotrophic', 'Oligotrophic')
+  #   values_vec <- c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')
+  # }
+  # 
+  # if(i$Indicator[1] == 'MICX_DETECT'){
+  #   breaks_vec <- c('c0', 'c2','c4')
+  #   labels_vec <- c('Not Assessed', 'Detected', 'Not Detected')
+  #   values_vec <- c('#808080','#e41a1c','#4daf4a')
+  # }
   
   # Set the axis label
   ylabel <- "Percent US Lakes"
@@ -158,11 +177,10 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
   
   ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = category_code)) + 
     geom_bar(stat = "identity", position = position_stack(reverse = TRUE), width = 0.70) +
-    # geom_errorbar(aes(ymin = Estimate.P - StdError.P, ymax = Estimate.P + StdError.P), width=.2, position=position_dodge(.9)) +
     facet_wrap(. ~ Indicator, labeller = labeller(Indicator = facet_labs)) +
-    scale_fill_manual(breaks = breaks_vec,
-                      labels = labels_vec,
-                      values = values_vec,
+    scale_fill_manual(breaks = i$category_code,
+                      labels = i$Category,
+                      values = i$color_hex,
 #                      guide = guide_legend(reverse = TRUE),
                       name = "Condition") +
     ylim(0, 100) +
@@ -173,6 +191,7 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
           axis.text.y = element_text(size = 11),
           strip.text = element_text(size = 12))
   })
+
 
 ```
 
