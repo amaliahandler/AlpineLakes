@@ -88,6 +88,7 @@ alp_lks <- alp_sub %>%
 elev_sub <- filter(alp_lks, Type == "ELEV_CLASS")
 
 # Make a discrete code for the color of the condition classes that is consistent
+# Filter to remove the CYNX_REC indicator since something is wrong with the population estimates here (Karen believes it's an error with whether condition categories were listed in all caps in a past survey)
 elev_intro <- elev_sub %>%
   mutate(category_code = case_when(Category == "Not Assessed" ~ 'c0',
                                    Category == "Poor" ~ 'c2',
@@ -114,9 +115,10 @@ elev_intro <- elev_sub %>%
   mutate(color_hex = case_when(category_code == 'c0' ~ '#808080',
                                category_code == 'c1' ~ '#984ea3',
                                category_code == 'c2' ~ '#e41a1c',
-                               category_code == 'c3' ~ '#F0C016',
+                               category_code == 'c3' ~ '#f0c016',
                                category_code == 'c4' ~ '#4daf4a')) %>%
-  mutate(color_hex = factor(color_hex, levels = c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')))
+  mutate(color_hex = factor(color_hex, levels = c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a'))) %>%
+  filter(Indicator != "CYNX_REC")
 
 # Label the facets
 facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity', 
@@ -150,37 +152,26 @@ ggList <- lapply(split(elev_sub, elev_sub$Indicator), function(i) {
 
 # Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
 
-i <- filter(elev_intro, Indicator == 'PTL_COND')
+i <- filter(elev_intro, Indicator == 'WHO_MICX_COND')
+temp <- filter(elev_intro, elev_intro$Indicator %in% unique(elev_intro$Indicator)[1:8])
 
+# Stuck here. WHO_MICX_COND has 5 levels including 'not detected'.
 cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
   
-  # # Set the fill colors
-  # breaks_vec <- c('c0','c2','c3','c4')
-  # labels_vec <- c('Not Assessed', 'Poor', 'Fair', 'Good')
-  # values_vec <- c('#808080','#e41a1c','#F0C016','#4daf4a')
-  # 
-  # if(i$Indicator[1] == 'TROPHIC_STATE'){
-  #   breaks_vec <- c('c0', 'c1','c2','c3','c4')
-  #   labels_vec <- c('Not Assessed', 'Hypereutrophic', 'Eutrophic', 'Mesotrophic', 'Oligotrophic')
-  #   values_vec <- c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')
-  # }
-  # 
-  # if(i$Indicator[1] == 'MICX_DETECT'){
-  #   breaks_vec <- c('c0', 'c2','c4')
-  #   labels_vec <- c('Not Assessed', 'Detected', 'Not Detected')
-  #   values_vec <- c('#808080','#e41a1c','#4daf4a')
-  # }
+  # Drop level that don't exist in this subset
+  i <- droplevels(i)
   
   # Set the axis label
   ylabel <- "Percent US Lakes"
   # ylabel <- "Percent Western US Lakes"
   
+  # Stuck here. The order of the condition categories is messed up and it's not taking the HEX codes for the colors.
   ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = category_code)) + 
     geom_bar(stat = "identity", position = position_stack(reverse = TRUE), width = 0.70) +
     facet_wrap(. ~ Indicator, labeller = labeller(Indicator = facet_labs)) +
-    scale_fill_manual(breaks = i$category_code,
-                      labels = i$Category,
-                      values = i$color_hex,
+    scale_fill_manual(breaks = levels(i$category_code),
+                      labels = levels(i$Category),
+                      values = levels(i$color_hex),
 #                      guide = guide_legend(reverse = TRUE),
                       name = "Condition") +
     ylim(0, 100) +
