@@ -12,10 +12,16 @@ The condition of alpine (\>10,000 ft) and subalpine (\>6,000 & \< 10,000 ft) lak
 ```{r load data, include = FALSE}
 library(dplyr)
 library(ggplot2)
+library(ggpubr)
 
 # Type = ELEV_CLASS includes alpine, subalpine and low elevation population classes
 # Type = ELEV_CLASS_SUB includes alpine + subalpine and a low elevation class
-alp_sub <- read.csv("C:/Users/AHANDL01/OneDrive - Environmental Protection Agency (EPA)/Profile/Documents/AlpineLakes/data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass20220610.csv")
+
+# Elevation population estimates where the population is all ecoregions
+alp_sub <- read.csv("./data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass20220610.csv")
+
+# Elevation population estimates where the population is constrained to just ecoregions with mountain lakes (SPL, WMT, XER)
+alp_sub <- read.csv("./data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass_EcoSub_07_18_2022.csv")
 
 ```
 
@@ -129,6 +135,7 @@ ggList <- lapply(split(elev_sub, elev_sub$Indicator), function(i) {
 # Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
 cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
   
+  # Set the fill colors
   breaks_vec <- c('c0','c2','c3','c4')
   labels_vec <- c('Not Assessed', 'Poor', 'Fair', 'Good')
   values_vec <- c('#808080','#e41a1c','#F0C016','#4daf4a')
@@ -145,6 +152,10 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
     values_vec <- c('#808080','#e41a1c','#4daf4a')
   }
   
+  # Set the axis label
+  ylabel <- "Percent US Lakes"
+  # ylabel <- "Percent Western US Lakes"
+  
   ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = category_code)) + 
     geom_bar(stat = "identity", position = position_stack(reverse = TRUE), width = 0.70) +
     # geom_errorbar(aes(ymin = Estimate.P - StdError.P, ymax = Estimate.P + StdError.P), width=.2, position=position_dodge(.9)) +
@@ -156,7 +167,7 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
                       name = "Condition") +
     ylim(0, 100) +
     coord_flip() +
-    ylab("Percent US Lakes") +
+    ylab(ylabel) +
     xlab("") +
     theme(axis.title.x = element_text(size = 10),
           axis.text.y = element_text(size = 11),
@@ -195,10 +206,15 @@ cowplot::plot_grid(plotlist = ggList,
 # With TN
 # ggpubr::ggarrange(cond_plots[[1]], cond_plots[[3]], cond_plots[[4]], cond_plots[[5]], ncol=2, nrow=2, common.legend = TRUE, legend="bottom")
 
-# Without TN
-ggpubr::ggarrange(cond_plots[[1]], cond_plots[[4]], cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
+# Benthic MMI, TP, and lakeshore disturbance - western ecoregions for lower lakes
+ggarrange(cond_plots[[1]] + rremove("xlab"), cond_plots[[4]] + rremove("xlab"), cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
 
-ggsave('./figures/ALreport_NLAcond.png',width = 4.5, height = 6, units = 'in', dpi = 600)
+ggsave('./figures/ALreport_NLAcond_WesternEcoregions.png',width = 4.5, height = 6, units = 'in', dpi = 600)
+
+# Benthic MMI, TP, and lakeshore disturbance - all ecoregions for lower lakes
+ggarrange(cond_plots[[1]] + rremove("xlab"), cond_plots[[4]] + rremove("xlab"), cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
+
+ggsave('./figures/ALreport_NLAcond_AllEcoregions.png',width = 4.5, height = 6, units = 'in', dpi = 600)
 
 ```
 
