@@ -1,0 +1,204 @@
+---
+title: "Alpine Lake Condition"
+author: "Amalia Handler"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The condition of alpine (\>10,000 ft) and subalpine (\>6,000 & \< 10,000 ft) lakes relative to low elevation lakes (\<6,000 ft) in the contiguous US according to the combined 2007, 2012, and 2017 National Lakes Assessments.
+
+```{r load data, include = FALSE}
+library(dplyr)
+library(ggplot2)
+
+# Type = ELEV_CLASS includes alpine, subalpine and low elevation population classes
+# Type = ELEV_CLASS_SUB includes alpine + subalpine and a low elevation class
+alp_sub <- read.csv("C:/Users/AHANDL01/OneDrive - Environmental Protection Agency (EPA)/Profile/Documents/AlpineLakes/data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass20220610.csv")
+
+```
+
+The NLA is a stratified random sample of lakes across the US. By applying the sample weights to lakes included in the NLA, the condition of US population of lakes can be statistically estimated. Below is a table showing the number of lakes sampled within each elevation class and the corresponding number of lakes where the condition can be statistically estimated with 95% confidence intervals.
+
+```{r NLA demographic info, echo = FALSE}
+
+alp_tab <- alp_sub %>%
+  filter(Type == "ELEV_CLASS" & Category == "Total") %>%
+  select(Subpopulation, nResp, Estimate.U, LCB95Pct.U, UCB95Pct.U) %>%
+  distinct() %>%
+  mutate(Subpopulation = factor(Subpopulation, 
+          levels = c("Alpine >= 10,000 ft",
+                     "Subalpine 6,000 ft < 10,000 ft",
+                     "Lower lakes < 6,000 ft"),
+          labels = c("Alpine", "Subalpine", "Lower Lakes" ))) %>%
+  mutate(Elevation = case_when(Subpopulation == "Lower Lakes" ~ "<6,000",
+                               Subpopulation == "Alpine" ~ ">10,000",
+                               TRUE ~ ">6,000 & < 10,000"), .before = nResp) %>%
+  arrange(Subpopulation) %>%
+  mutate(across(ends_with(".U"), round, 0)) 
+
+knitr::kable(alp_tab, col.names = c("Subpopulation", "Elevation (ft)", "NLA Sampled Lakes", "Estimated Population", "Lower Bound 95% CI", "Upper Bound 95% CI"), align = "llrrrr", format.args = list(big.mark = ","))
+
+```
+
+```{r compile data, echo = FALSE}
+alp_lks <- alp_sub %>%
+  filter(Type %in% c("ELEV_CLASS", "ELEV_CLASS_SUB")) %>%
+  filter(Category != "Total") %>%
+  mutate(Category = factor(Category, levels = c("Not Assessed", 
+                                                "Not Detected",
+                                                "Detected",
+                                                "At or Below Benchmark",
+                                                "Above Benchmark",
+                                                "Poor", 
+                                                "Fair", 
+                                                "Good", 
+                                                "Low", 
+                                                "Moderate", 
+                                                "High", 
+                                                "LOW", 
+                                                "MODERATE", 
+                                                "HIGH", 
+                                                "Low (<=3 ppm)", 
+                                                "Moderate (>3 - <5 ppm)",
+                                                "High (>=5 ppm)", 
+                                                "Hypereutrophic",
+                                                "Eutrophic",
+                                                "Mesotrophic",
+                                                "Oligotrophic"))) %>%
+  mutate(Subpopulation = factor(Subpopulation, 
+          levels = c("Lower lakes < 6,000 ft", 
+          "Alpine + Subalpine >= 6,000 ft", 
+          "Subalpine 6,000 ft < 10,000 ft", 
+          "Alpine >= 10,000 ft"),
+          labels = c("Lower Lakes", "Subalpine + Alpine", "Subalpine", "Alpine")))
+```
+
+```{r multiplot list, echo = FALSE}
+# Multi-plot code
+
+# Subset to the three elevation classes
+elev_sub <- filter(alp_lks, Type == "ELEV_CLASS")
+
+# Make a discrete code for the color classes for the TN, TP, Benthic MMI, and trophic state categories
+elev_intro <- elev_sub %>%
+  mutate(category_code = case_when(Category == "Not Assessed" ~ 'c0',
+                                   Category == "Poor" ~ 'c2',
+                                   Category == 'Fair' ~ 'c3',
+                                   Category == "Good" ~ 'c4',
+                                   Category == 'Hypereutrophic' ~ 'c1',
+                                   Category == 'Eutrophic' ~ 'c2',
+                                   Category == 'Mesotrophic' ~ 'c3',
+                                   Category == 'Oligotrophic' ~ 'c4',
+                                   Category == 'Detected' ~ 'c2',
+                                   Category == 'Not Detected' ~ 'c4',
+                                   TRUE ~ "other")) %>%
+  filter(Indicator %in% c('NTL_COND', 'PTL_COND', 'TROPHIC_STATE', 'BENT_MMI_COND_2017', 'RDIS_COND', 'MICX_DETECT'))
+
+# Label the facets
+facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity', 
+                'DIS_O2_CLS' = 'Dissolved Oxygen',
+                'PTL_COND' = 'Total Phosphorus',
+                'NTL_COND' = 'Total Nitrogen',
+                'CHLA_COND' = 'Chlorophyll-a',
+                'CYNX_REC' = 'CYNX_REC',
+                'MICX_EPA_COND' = 'Microcystin EPA',
+                'MICX_DETECT' = 'Microcystin Detection',
+                'WHO_MICX_COND' = 'Microcystin WHO',
+                'TROPHIC_STATE' = 'Trophic Condition',
+                'BENT_MMI_COND_2017' = 'Benthic Macroinvertebrates',
+                'LITRIPCVR_COND' = 'Littoral Riparian Habitat',
+                'LITCVR_COND' = 'Littoral Cover',
+                'RVEG_COND' = 'Riparian Vegetation',
+                'RDIS_COND' = 'Lakeshore Anthropogenic Disturbance')
+
+# make list of all condition plots
+ggList <- lapply(split(elev_sub, elev_sub$Indicator), function(i) {
+  ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = Category)) +
+    geom_bar(stat = "identity", position = position_dodge()) +
+    geom_errorbar(aes(ymin = Estimate.P - StdError.P, ymax = Estimate.P + StdError.P), width=.2, position=position_dodge(.9)) +
+    facet_wrap(. ~ Indicator, labeller = labeller(Indicator = facet_labs)) +
+    coord_flip() +
+    ylab("Percent US Lakes") +
+    xlab("")
+  })
+
+
+
+# Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
+cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
+  
+  breaks_vec <- c('c0','c2','c3','c4')
+  labels_vec <- c('Not Assessed', 'Poor', 'Fair', 'Good')
+  values_vec <- c('#808080','#e41a1c','#F0C016','#4daf4a')
+  
+  if(i$Indicator[1] == 'TROPHIC_STATE'){
+    breaks_vec <- c('c0', 'c1','c2','c3','c4')
+    labels_vec <- c('Not Assessed', 'Hypereutrophic', 'Eutrophic', 'Mesotrophic', 'Oligotrophic')
+    values_vec <- c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a')
+  }
+  
+  if(i$Indicator[1] == 'MICX_DETECT'){
+    breaks_vec <- c('c0', 'c2','c4')
+    labels_vec <- c('Not Assessed', 'Detected', 'Not Detected')
+    values_vec <- c('#808080','#e41a1c','#4daf4a')
+  }
+  
+  ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = category_code)) + 
+    geom_bar(stat = "identity", position = position_stack(reverse = TRUE), width = 0.70) +
+    # geom_errorbar(aes(ymin = Estimate.P - StdError.P, ymax = Estimate.P + StdError.P), width=.2, position=position_dodge(.9)) +
+    facet_wrap(. ~ Indicator, labeller = labeller(Indicator = facet_labs)) +
+    scale_fill_manual(breaks = breaks_vec,
+                      labels = labels_vec,
+                      values = values_vec,
+#                      guide = guide_legend(reverse = TRUE),
+                      name = "Condition") +
+    ylim(0, 100) +
+    coord_flip() +
+    ylab("Percent US Lakes") +
+    xlab("") +
+    theme(axis.title.x = element_text(size = 10),
+          axis.text.y = element_text(size = 11),
+          strip.text = element_text(size = 12))
+  })
+
+```
+
+As an example of the plots that can be generated from these data, the condition of alpine, subalpine, and lower lakes are shown with respect to benthic Macroinvertebrate Multimetric Index (MMI), total nitrogen, total phosphorus, lakeshore anthropoengenic disturbance, and trophic state.
+
+```{r select variables, echo = FALSE}
+# Identify which condition variables to include in the plot
+# cond_plots <- list(ggList$NTL_COND,
+#                    ggList$PTL_COND,
+#                    ggList$TROPHIC_STATE,
+#                    ggList$BENT_MMI_COND_2017)
+
+```
+
+```{r generate plot, include = T, echo = FALSE, fig.height = length(cond_plots) * 3}
+# plot as grid in n columns 
+cowplot::plot_grid(plotlist = cond_plots,
+                   ncol = 1,
+                   align = 'v')
+```
+
+The complete set of indicators assessed in the NLA are shown below.
+
+```{r, echo = FALSE, fig.height = length(ggList) * 3}
+cowplot::plot_grid(plotlist = ggList,
+                   ncol = 1,
+                   align = 'v')
+```
+
+```{r}
+# With TN
+# ggpubr::ggarrange(cond_plots[[1]], cond_plots[[3]], cond_plots[[4]], cond_plots[[5]], ncol=2, nrow=2, common.legend = TRUE, legend="bottom")
+
+# Without TN
+ggpubr::ggarrange(cond_plots[[1]], cond_plots[[4]], cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
+
+ggsave('./figures/ALreport_NLAcond.png',width = 4.5, height = 6, units = 'in', dpi = 600)
+
+```
+
