@@ -18,10 +18,10 @@ library(ggpubr)
 # Type = ELEV_CLASS_SUB includes alpine + subalpine and a low elevation class
 
 # Elevation population estimates where the population is all ecoregions
-alp_sub <- read.csv("./data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass20220610.csv")
+alp_sub <- read.csv("C:/Users/AHANDL01/OneDrive - Environmental Protection Agency (EPA)/Profile/Documents/AlpineLakes/data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass20220610.csv")
 
 # Elevation population estimates where the population is constrained to just ecoregions with mountain lakes (SPL, WMT, XER)
-alp_sub <- read.csv("./data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass_EcoSub_07_18_2022.csv")
+alp_sub <- read.csv("C:/Users/AHANDL01/OneDrive - Environmental Protection Agency (EPA)/Profile/Documents/AlpineLakes/data/NLA_Comb_2007-2017_CondClass_Estimates_IndexVisits_withElevationClass_EcoSub_07_18_2022.csv")
 
 ```
 
@@ -44,7 +44,13 @@ alp_tab <- alp_sub %>%
   arrange(Subpopulation) %>%
   mutate(across(ends_with(".U"), round, 0)) 
 
-knitr::kable(alp_tab, col.names = c("Subpopulation", "Elevation (ft)", "NLA Sampled Lakes", "Estimated Population", "Lower Bound 95% CI", "Upper Bound 95% CI"), align = "llrrrr", format.args = list(big.mark = ","))
+knitr::kable(alp_tab, col.names = c("Subpopulation", 
+                                    "Elevation (ft)", 
+                                    "NLA Sampled Lakes", 
+                                    "Estimated Population", 
+                                    "Lower Bound 95% CI", 
+                                    "Upper Bound 95% CI"), 
+             align = "llrrrr", format.args = list(big.mark = ","))
 
 ```
 
@@ -149,9 +155,14 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
   # Drop level that don't exist in this subset
   i <- droplevels(i)
   
-  # Set the axis label
+  # Set the axis label based on the lower lakes reference population
   ylabel <- "Percent US Lakes"
-  # ylabel <- "Percent Western US Lakes"
+  
+  lower_lakes_pop <- alp_sub$nResp[alp_sub$Category == 'Total' & alp_sub$Subpopulation == 'Lower lakes < 6,000 ft'][1]
+  
+  if(lower_lakes_pop == 550){
+    ylabel <- "Percent Western US Lakes"
+  }
   
   # Stuck here. The order of the condition categories is messed up and it's not taking the HEX codes for the colors.
   ggplot(i, aes(x = Subpopulation, y = Estimate.P, fill = category_code)) + 
@@ -175,7 +186,14 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
 ```
 
 
-```{r, include = F}
+```{r, echo = FALSE, fig.height = length(cond_plots) * 3}
+cowplot::plot_grid(plotlist = cond_plots,
+                   ncol = 1,
+                   align = 'v')
+```
+
+
+```{r, eval = F, include = F}
 # Export plots for the report
 
 # Benthic MMI, TP, and lakeshore disturbance - western ecoregions for lower lakes
