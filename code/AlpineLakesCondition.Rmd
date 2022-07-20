@@ -52,9 +52,9 @@ knitr::kable(alp_tab, col.names = c("Subpopulation", "Elevation (ft)", "NLA Samp
 alp_lks <- alp_sub %>%
   filter(Type %in% c("ELEV_CLASS", "ELEV_CLASS_SUB")) %>%
   filter(Category != "Total") %>%
-  mutate(Category = factor(Category, levels = c("Not Assessed", 
-                                                "Not Detected",
+  mutate(Category = factor(Category, levels = c("Not Assessed",
                                                 "Detected",
+                                                "Not Detected",
                                                 "At or Below Benchmark",
                                                 "Above Benchmark",
                                                 "Poor", 
@@ -117,8 +117,8 @@ elev_intro <- elev_sub %>%
                                category_code == 'c2' ~ '#e41a1c',
                                category_code == 'c3' ~ '#f0c016',
                                category_code == 'c4' ~ '#4daf4a')) %>%
-  mutate(color_hex = factor(color_hex, levels = c('#808080', '#984ea3','#e41a1c','#F0C016','#4daf4a'))) %>%
-  filter(Indicator != "CYNX_REC")
+  mutate(color_hex = factor(color_hex, levels = c('#808080', '#984ea3','#e41a1c','#f0c016','#4daf4a'))) %>%
+  filter(!Indicator %in% c("CYNX_REC", 'WHO_MICX_COND'))
 
 # Label the facets
 facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity', 
@@ -140,8 +140,8 @@ facet_labs <- c('ACID_COND' = 'Acid Neutralizing Capacity',
 # Edit with color scheme for revised plots with consistent color scales for TN, TP, trophic state, and benthic MMI.
 
 # Testing
-i <- filter(elev_intro, Indicator == 'WHO_MICX_COND')
-temp <- filter(elev_intro, elev_intro$Indicator %in% unique(elev_intro$Indicator)[1:8])
+# i <- filter(elev_intro, Indicator == "MICX_DETECT")
+# temp <- filter(elev_intro, elev_intro$Indicator %in% unique(elev_intro$Indicator)[1:13])
 
 # Stuck here. WHO_MICX_COND has 5 levels including 'not detected'.
 cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
@@ -162,7 +162,7 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
                       values = levels(i$color_hex),
 #                      guide = guide_legend(reverse = TRUE),
                       name = "Condition") +
-    ylim(0, 100) +
+    ylim(0, 100.1) +
     coord_flip() +
     ylab(ylabel) +
     xlab("") +
@@ -175,17 +175,16 @@ cond_plots <- lapply(split(elev_intro, elev_intro$Indicator), function(i) {
 ```
 
 
-```{r}
-# With TN
-# ggpubr::ggarrange(cond_plots[[1]], cond_plots[[3]], cond_plots[[4]], cond_plots[[5]], ncol=2, nrow=2, common.legend = TRUE, legend="bottom")
+```{r, include = F}
+# Export plots for the report
 
 # Benthic MMI, TP, and lakeshore disturbance - western ecoregions for lower lakes
-ggarrange(cond_plots[[1]] + rremove("xlab"), cond_plots[[4]] + rremove("xlab"), cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
+ggarrange(cond_plots$BENT_MMI_COND_2017 + rremove("xlab"), cond_plots$PTL_COND + rremove("xlab"), cond_plots$RDIS_COND, ncol=1, common.legend = TRUE, legend="bottom")
 
 ggsave('./figures/ALreport_NLAcond_WesternEcoregions.png',width = 4.5, height = 6, units = 'in', dpi = 600)
 
 # Benthic MMI, TP, and lakeshore disturbance - all ecoregions for lower lakes
-ggarrange(cond_plots[[1]] + rremove("xlab"), cond_plots[[4]] + rremove("xlab"), cond_plots[[5]], ncol=1, common.legend = TRUE, legend="bottom")
+ggarrange(cond_plots$BENT_MMI_COND_2017 + rremove("xlab"), cond_plots$PTL_COND + rremove("xlab"), cond_plots$RDIS_COND, ncol=1, common.legend = TRUE, legend="bottom")
 
 ggsave('./figures/ALreport_NLAcond_AllEcoregions.png',width = 4.5, height = 6, units = 'in', dpi = 600)
 
