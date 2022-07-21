@@ -7,6 +7,10 @@ editor_options:
   chunk_output_type: console
 ---
 
+Sampled NLA lakes from 2007, 2012, 2017
+Indexed sites only
+Only first sample is used from lakes that were resurveyed
+
 ```{r}
 library(dplyr)
 library(sf)
@@ -16,15 +20,16 @@ library(ggplot2)
 nla_df <- read.csv('./data/NLA_Comb_2007-2017_IndexVisits_withElevationClass.csv')
 
 # Convert to sf object
-nla_sf <- st_as_sf(nla_df, coords = c('XCOORD', 'YCOORD'))
+nla_sf <- st_as_sf(nla_df, coords = c('LON_DD83', 'LAT_DD83'), crs = 4269, remove = FALSE)
 
 # Get CONUS shapefile
 conus <- st_as_sf(USAboundaries::us_states())
 conus <- conus[!conus$name %in% c('Alaska','Hawaii','Puerto Rico'), ]
 
 # Set the projection to Albers equal area
-conus <- st_transform(conus, '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
-nla_albers   <- st_set_crs(nla_sf, st_crs(conus)) 
+# epsg code for Albers equal area proj
+conus <- st_transform(conus, 5070) 
+nla_albers   <- st_transform(nla_sf, st_crs(conus)) 
 
 # Order the levels of the elevation class
 nla <- nla_albers %>%
@@ -36,11 +41,55 @@ ggplot() +
   geom_sf(data = conus, fill = "#e2e2e2", color = "white", size = 0.5) +
   geom_sf(data = nla, shape = 21, aes(fill = ELEV_CLASS), size = 1.5, stroke = .2) +
   scale_fill_manual(breaks = levels(nla$ELEV_CLASS),
-                    name = "NLA Lake Elevation",
+                    name = "Elevation Class",
                     values = c('#A8ACDB', '#9016DB', '#00D6DB'),
                     guide = guide_legend(reverse = TRUE)) +
-  theme_void()
+  ggtitle('NLA Sampled Lake Elevations') +
+  theme_void() +
+  theme(plot.title=element_text(hjust=0.5))
   
-ggsave("./figures/NLALakeElevation.png", width = 8, height = 3.5, units = "in", dpi = 600, bg = 'white')
+ggsave("./figures/NLALakeElevation.png", width = 7.5, height = 3.5, units = "in", dpi = 600, bg = 'white')
+```
+
+
+NLA sample frame elevations
+
+
+```{r}
+# Load NLA sample frame lake elevations compiled by Marc
+frame_df <- read.csv('./data/nla_frame_elevations.csv')
+
+# Convert to sf object
+frame_sf <- st_as_sf(frame_df, coords = c('lon_dd83', 'lat_dd83'), crs = 4269, remove = FALSE)
+
+# Transform to Albers projection
+frame_albers <- st_transform(frame_sf, st_crs(conus)) 
+
+# Crop the NLA sample frame to CONUS
+frame_crop <- st_crop(frame_albers, st_bbox(conus))
+
+# Order the levels of the elevation class
+frame <- frame_crop %>%
+  mutate(elev_ft = elevation * 3.28084) %>%
+  filter(elev_ft >= 5000) %>%
+  mutate(elev_class = case_when(elev_ft >= 5000 & elev_ft < 6000 ~ "5,000 < 6,000 ft",
+                                elev_ft >= 6000 & elev_ft < 10000 ~ "6,000 < 10,000 ft",
+                                elev_ft >= 10000 ~ "> 10,000 ft")) %>%
+  mutate(elev_class = factor(elev_class, levels = c("5,000 < 6,000 ft", "6,000 < 10,000 ft", "> 10,000 ft"))) %>%
+  arrange(elev_class)
+
+frame_plot <- ggplot() + 
+  geom_sf(data = conus, fill = "#e2e2e2", color = "white", size = 0.5) +
+  geom_sf(data = frame, shape = 21, aes(fill = elev_class), size = 1, stroke = .2) +
+  scale_fill_manual(breaks = levels(frame$elev_class),
+                    name = "Elevation Class",
+                    values = c('#DB5300', '#9016DB', '#00D6DB'),
+                    guide = guide_legend(reverse = TRUE)) +
+  ggtitle('NLA Sample Frame Lake Elevations') +
+  theme_void() +
+  theme(plot.title=element_text(hjust=0.5))
+
+ggsave("./figures/NLAFrameLakeElevation_NoLowLakes.png", plot = frame_plot, width = 7.5, height = 3.5, units = "in", dpi = 600, bg = 'white')
+
 ```
 
