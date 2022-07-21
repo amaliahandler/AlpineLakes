@@ -71,11 +71,9 @@ frame_crop <- st_crop(frame_albers, st_bbox(conus))
 # Order the levels of the elevation class
 frame <- frame_crop %>%
   mutate(elev_ft = elevation * 3.28084) %>%
-  filter(elev_ft >= 5000) %>%
-  mutate(elev_class = case_when(elev_ft >= 5000 & elev_ft < 6000 ~ "5,000 < 6,000 ft",
-                                elev_ft >= 6000 & elev_ft < 10000 ~ "6,000 < 10,000 ft",
-                                elev_ft >= 10000 ~ "> 10,000 ft")) %>%
-  mutate(elev_class = factor(elev_class, levels = c("5,000 < 6,000 ft", "6,000 < 10,000 ft", "> 10,000 ft"))) %>%
+  filter(elev_ft >= 6000) %>%
+  mutate(elev_class = case_when(elev_ft >= 6000 & elev_ft < 10000 ~ "6,000 < 10,000 ft", elev_ft >= 10000 ~ "> 10,000 ft")) %>%
+  mutate(elev_class = factor(elev_class, levels = c("6,000 < 10,000 ft", "> 10,000 ft"))) %>%
   arrange(elev_class)
 
 frame_plot <- ggplot() + 
@@ -83,13 +81,13 @@ frame_plot <- ggplot() +
   geom_sf(data = frame, shape = 21, aes(fill = elev_class), size = 1, stroke = .2) +
   scale_fill_manual(breaks = levels(frame$elev_class),
                     name = "Elevation Class",
-                    values = c('#DB5300', '#9016DB', '#00D6DB'),
+                    values = c('#9016DB', '#00D6DB'),
                     guide = guide_legend(reverse = TRUE)) +
   ggtitle('NLA Sample Frame Lake Elevations') +
   theme_void() +
   theme(plot.title=element_text(hjust=0.5))
 
-ggsave("./figures/NLAFrameLakeElevation_NoLowLakes.png", plot = frame_plot, width = 7.5, height = 3.5, units = "in", dpi = 600, bg = 'white')
+ggsave("./figures/NLAFrameLakeElevation_6k-10k.png", plot = frame_plot, width = 7.5, height = 3.5, units = "in", dpi = 600, bg = 'white')
 
 ```
 
